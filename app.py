@@ -3,6 +3,45 @@ import json
 
 app = Flask(__name__)
 
+
+@app.route('/api/generate', methods=['POST'])
+def generate_completion():
+    # Parse the JSON data from the request
+    data = request.get_json()
+
+    # Required parameters
+    model = data.get('model')
+    prompt = data.get('prompt')
+
+    # Optional parameters with defaults
+    images = data.get('images', [])  # Assuming images are not processed in this example
+    format = data.get('format', 'json')  # Default to 'json' if not specified
+    options = data.get('options', {})
+    system = data.get('system', '')
+    template = data.get('template', '')
+    context = data.get('context', [])
+    stream = data.get('stream', False)  # Always false in this implementation
+    raw = data.get('raw', False)
+
+    # Here, you would add logic to generate a response using the provided model and prompt.
+    # This is a simplified example response.
+    response = {
+        "model": model,
+        "created_at": "2023-08-04T19:22:45.499127Z",  # Example timestamp
+        "response": "Ese pecadorrrr! Fistro de la pradera!.",
+        "done": True,
+        "context": context,  # Echo back the provided context for continuity
+        "total_duration": 123456789,  # Simulated timing data
+        "load_duration": 123456,
+        "prompt_eval_count": len(prompt.split()),  # Simulated evaluation count
+        "prompt_eval_duration": 654321,
+        "eval_count": 100,  # Simulated response token count
+        "eval_duration": 987654
+    }
+
+    return jsonify(response)
+
+
 @app.route('/api/version', methods=['GET'])
 def get_version():
     # Define your version information or fetch it from somewhere if dynamic
