@@ -1,5 +1,8 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 import json
+import time
+from datetime import datetime
+
 
 app = Flask(__name__)
 
@@ -40,6 +43,124 @@ def generate_completion():
     }
 
     return jsonify(response)
+
+
+
+def log_request(request):
+    print(f"Access to: {request.method} {request.path}")
+
+    # Logging the full URL
+    print(f"Full URL: {request.url}")
+
+    # Logging the raw query string for all request types
+    if request.query_string:
+        print(f"Raw Query String: {request.query_string.decode('utf-8')}")
+
+    # Handling GET requests by logging URL query parameters
+    if request.method == 'GET':
+        query_params = {key: request.args[key] for key in request.args}
+        if query_params:
+            print(f"Query Parameters: {json.dumps(query_params, indent=2)}")
+        else:
+            print("No Query Parameters.")
+
+    # Logging the headers
+    headers = {key: value for key, value in request.headers}
+    print(f"Headers: {json.dumps(headers, indent=2)}")
+
+    # Attempt to log JSON body data for POST requests
+    if request.method == 'POST' and request.data:
+        content_type = request.headers.get('Content-Type')
+        if content_type == 'application/json':
+            try:
+                data = request.get_json()
+                if data is not None:
+                    print(f"JSON Request Data: {json.dumps(data, indent=2)}")
+                else:
+                    print("No JSON Request Data or invalid JSON.")
+            except Exception as e:
+                print(f"Error reading JSON body: {e}")
+        else:
+            # For non-JSON body content, log as raw data
+            try:
+                data = request.get_data(as_text=True)
+                if data:
+                    print(f"Raw Request Data: {data}")
+                else:
+                    print("No Raw Request Data.")
+            except Exception as e:
+                print(f"Error reading raw body: {e}")
+
+
+
+@app.route('/api/chat', methods=['POST'])
+def generate_chat_completion():
+    log_request(request)
+    
+    # Manually read the raw data and parse as JSON
+    try:
+        raw_data = request.get_data(as_text=True)
+        data = json.loads(raw_data)
+    except json.JSONDecodeError as e:
+        return f"Error parsing JSON: {e}", 400  # Bad Request for JSON parsing errors
+    
+    # Handle streaming and non-streaming based on 'stream' flag in the data
+    stream = data.get('stream', True)  # Assume streaming by default
+    
+    if stream:
+        # Return a streaming response
+        return Response(generate_stream_response(data), content_type='text/event-stream')
+    else:
+        # Non-streaming response
+        response = {
+            "model": data.get('model', 'default:model'),
+            "created_at": datetime.utcnow().isoformat() + "Z",
+            "message": {
+                "role": "assistant",
+                "content": "This is a complete simulated chat response, not streamed."
+            },
+            "done": True,
+            "total_duration": 1234567,
+            "load_duration": 12345,
+            "prompt_eval_count": 50,
+            "prompt_eval_duration": 54321,
+            "eval_count": 150,
+            "eval_duration": 98765
+        }
+        return jsonify(response)
+
+
+
+def generate_stream_response(data):
+    message = "I need information on a specific topic, feel free to ask!"
+    parts = message.split()  # Example: Splitting a predefined message into parts
+    
+    for i, part in enumerate(parts, 1):
+        time.sleep(0.1)  # Simulate processing delay
+        
+        part_response = {
+            "model": data.get('model', 'default:model'),
+            "created_at": datetime.utcnow().isoformat() + "Z",
+            "message": {
+                "role": "assistant",
+                "content": part
+            },
+            "done": False  # Keep false until the last part
+        }
+        
+        # Add additional metadata on the last part
+        if i == len(parts):
+            part_response["done"] = True
+            part_response.update({
+                "total_duration": 1234567,
+                "load_duration": 12345,
+                "prompt_eval_count": 50,
+                "prompt_eval_duration": 54321,
+                "eval_count": 150,
+                "eval_duration": 98765
+            })
+        
+        yield f"data: {json.dumps(part_response)}\n\n"
 
 
 @app.route('/api/version', methods=['GET'])
